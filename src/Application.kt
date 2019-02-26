@@ -1,6 +1,10 @@
 package com.example
 
 import io.ktor.application.*
+import io.ktor.auth.Authentication
+import io.ktor.auth.UserIdPrincipal
+import io.ktor.auth.authenticate
+import io.ktor.auth.basic
 import io.ktor.response.*
 import io.ktor.request.*
 import io.ktor.routing.*
@@ -41,7 +45,24 @@ fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
     install(Locations)
+    install(Authentication) {
 
+        /**
+         * Basic authentication: access if name = password
+         */
+
+        basic(name = "myauth1") {
+            realm = "Ktor Server"
+            validate { credentials ->
+                // Change to check credentials with DB values
+                if (credentials.name == credentials.password) {
+                    UserIdPrincipal(credentials.name)
+                } else {
+                    null
+                }
+            }
+        }
+    }
 
     val client = HttpClient(Apache) {
     }
@@ -65,16 +86,18 @@ fun Application.module(testing: Boolean = false) {
             }
         }
 
-        get("/styles.css") {
-            call.respondCss {
-                body {
-                    backgroundColor = Color.red
-                }
-                p {
-                    fontSize = 2.em
-                }
-                rule("p.myclass") {
-                    color = Color.blue
+        authenticate("myauth1") {
+            get("/styles.css") {
+                call.respondCss {
+                    body {
+                        backgroundColor = Color.red
+                    }
+                    p {
+                        fontSize = 2.em
+                    }
+                    rule("p.myclass") {
+                        color = Color.blue
+                    }
                 }
             }
         }
