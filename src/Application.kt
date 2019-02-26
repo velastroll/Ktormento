@@ -1,5 +1,7 @@
 package com.example
 
+import com.example.Model.Employee
+import com.example.dao.DAOFacadeDatabase
 import io.ktor.application.*
 import io.ktor.auth.Authentication
 import io.ktor.auth.UserIdPrincipal
@@ -11,29 +13,24 @@ import io.ktor.routing.*
 import io.ktor.http.*
 import io.ktor.html.*
 import kotlinx.html.*
-import kotlinx.css.*
 import io.ktor.locations.*
 import io.ktor.client.*
 import io.ktor.client.engine.apache.*
-
+import io.ktor.features.*
+import io.ktor.gson.*
+import org.jetbrains.exposed.sql.*
 
 /**
  * Classes used for the locations feature to build urls and register router
  */
 
-@Location("/location/{name}")
-class MyLocation(val name: String, val arg1: Int = 42, val arg2: String = "default")
-
-@Location("/type/{name}") data class Type(val name: String) {
-    @Location("/edit")
-    data class Edit(val type: Type)
-
-    @Location("/list/{page}")
-    data class List(val type: Type, val page: Int, val name: String)
-}
-
 @Location("/external")
 class externalModule()
+
+/**
+ * DAO
+ */
+val dao = DAOFacadeDatabase(Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", driver = "org.h2.Driver"))
 
 
 /**
@@ -44,7 +41,12 @@ fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
+
+    dao.init()
     install(Locations)
+    install(ContentNegotiation) {
+        gson {}
+    }
     install(Authentication) {
 
         /**
@@ -69,6 +71,7 @@ fun Application.module(testing: Boolean = false) {
 
     routing {
         externalModule()
+
         get("/") {
             call.respondText("HELLO WORLD!", contentType = ContentType.Text.Plain)
         }
@@ -88,44 +91,28 @@ fun Application.module(testing: Boolean = false) {
 
         authenticate("myauth1") {
             get("/styles.css") {
-                call.respondCss {
-                    body {
-                        backgroundColor = Color.red
-                    }
-                    p {
-                        fontSize = 2.em
-                    }
-                    rule("p.myclass") {
-                        color = Color.blue
-                    }
-                }
+
             }
         }
 
-        get<MyLocation> {
-            call.respondText("Location: name=${it.name}, arg1=${it.arg1}, arg2=${it.arg2}")
-        }
-        // Register nested routes
-        get<Type.Edit> {
-            call.respondText("Inside $it")
-        }
-        get<Type.List> {
-            call.respondText("Inside $it")
+
+        route("/employees"){
+            get {
+                call.respond(dao.getAllEmployees())
+            }
+            post {
+                val emp = call.receive<Employee>()
+                dao.createEmployee(emp.name, emp.email, emp.city)
+            }
+            put {
+                val emp = call.receive<Employee>()
+                dao.updateEmployee(emp.id, emp.name, emp.email, emp.city)
+            }
+            delete("/{id}") {
+                val id = call.parameters["id"]
+                if(id != null)
+                    dao.deleteEmployee(id.toInt())
+            }
         }
     }
-}
-
-
-fun FlowOrMetaDataContent.styleCss(builder: CSSBuilder.() -> Unit) {
-    style(type = ContentType.Text.CSS.toString()) {
-        +CSSBuilder().apply(builder).toString()
-    }
-}
-
-fun CommonAttributeGroupFacade.style(builder: CSSBuilder.() -> Unit) {
-    this.style = CSSBuilder().apply(builder).toString().trim()
-}
-
-suspend inline fun ApplicationCall.respondCss(builder: CSSBuilder.() -> Unit) {
-    this.respondText(CSSBuilder().apply(builder).toString(), ContentType.Text.CSS)
 }
