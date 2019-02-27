@@ -1,4 +1,4 @@
-package com.example.dao
+package com.example.domain
 
 import org.jetbrains.exposed.sql.Table
 

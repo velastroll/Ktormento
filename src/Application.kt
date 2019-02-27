@@ -1,7 +1,8 @@
 package com.example
 
-import com.example.Model.Employee
-import com.example.dao.DAOFacadeDatabase
+import com.example.model.*
+import com.example.dao.*
+import com.example.resource.*
 import io.ktor.application.*
 import io.ktor.auth.Authentication
 import io.ktor.auth.UserIdPrincipal
@@ -22,15 +23,13 @@ import org.jetbrains.exposed.sql.*
 
 /**
  * Classes used for the locations feature to build urls and register router
- */
-
 @Location("/external")
-class externalModule()
+class externalModule() */
 
 /**
- * DAO
+ * DAOs
  */
-val dao = DAOFacadeDatabase(Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", driver = "org.h2.Driver"))
+val daoEmployee = EmployeeFacade(Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", driver = "org.h2.Driver"))
 
 
 /**
@@ -42,7 +41,7 @@ fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
 
-    dao.init()
+    daoEmployee.init()
     install(Locations)
     install(ContentNegotiation) {
         gson {}
@@ -71,6 +70,7 @@ fun Application.module(testing: Boolean = false) {
 
     routing {
         externalModule()
+        employees(daoEmployee)
 
         get("/") {
             call.respondText("HELLO WORLD!", contentType = ContentType.Text.Plain)
@@ -95,24 +95,5 @@ fun Application.module(testing: Boolean = false) {
             }
         }
 
-
-        route("/employees"){
-            get {
-                call.respond(dao.getAllEmployees())
-            }
-            post {
-                val emp = call.receive<Employee>()
-                dao.createEmployee(emp.name, emp.email, emp.city)
-            }
-            put {
-                val emp = call.receive<Employee>()
-                dao.updateEmployee(emp.id, emp.name, emp.email, emp.city)
-            }
-            delete("/{id}") {
-                val id = call.parameters["id"]
-                if(id != null)
-                    dao.deleteEmployee(id.toInt())
-            }
-        }
     }
 }

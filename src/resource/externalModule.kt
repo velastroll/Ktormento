@@ -1,4 +1,4 @@
-package com.example
+package com.example.resource
 
 import io.ktor.application.call
 import io.ktor.response.respond

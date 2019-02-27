@@ -1,11 +1,12 @@
 package com.example.dao
 
-import com.example.Model.Employee
+import com.example.model.Employee
+import com.example.domain.Employees
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.Closeable
 
-interface DAOFacade: Closeable{
+interface DAOEmployee: Closeable{
     fun init()
     fun createEmployee(name:String, email:String, city:String)
     fun updateEmployee(id:Int, name:String, email:String, city:String)
@@ -14,7 +15,7 @@ interface DAOFacade: Closeable{
     fun getAllEmployees(): List<Employee>
 }
 
-class DAOFacadeDatabase(val db: Database): DAOFacade{
+class EmployeeFacade(val db: Database): DAOEmployee{
 
     override fun init() = transaction(db) {
         SchemaUtils.create(Employees)
